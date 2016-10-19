@@ -1,9 +1,15 @@
 environment:
   matrix:
-  - JULIAVERSION: "julialang/bin/winnt/x86/0.5/julia-0.5-latest-win32.exe"
-  - JULIAVERSION: "julialang/bin/winnt/x64/0.5/julia-0.5-latest-win64.exe"
-  - JULIAVERSION: "julianightlies/bin/winnt/x86/julia-latest-win32.exe"
-  - JULIAVERSION: "julianightlies/bin/winnt/x64/julia-latest-win64.exe"
+    - JULIAVERSION: "julialang/bin/winnt/x86/0.5/julia-0.5-latest-win32.exe"
+      JULIAVERSIONNAME: "0.5"
+    - JULIAVERSION: "julialang/bin/winnt/x64/0.5/julia-0.5-latest-win64.exe"
+      JULIAVERSIONNAME: "0.5"
+    - JULIAVERSION: "julianightlies/bin/winnt/x86/julia-latest-win32.exe"
+      JULIAVERSIONNAME: "nightly"
+    - JULIAVERSION: "julianightlies/bin/winnt/x64/julia-latest-win64.exe"
+      JULIAVERSIONNAME: "nightly"
+  allow_failures:
+    - JULIAVERSIONNAME: "nightly"
 
 branches:
   only:
