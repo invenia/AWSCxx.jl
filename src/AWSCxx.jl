@@ -1,5 +1,14 @@
 module AWSCxx
 
-# package code goes here
+export AWSClient, AWSFeatures, AWSError, AWSOutcome
+
+include("common.jl")
+include("client.jl")
+include("features.jl")
+include("outcomes.jl")
+
+using .AWSFeatures
+
+AWSFeatures.load("core")
 
 end # module
