@@ -17,7 +17,7 @@ end
 function AWSError{C, I, Q}(cpp_error::CppAWSError{C, I, Q})
     AWSError{C, I, Q}(
         cpp_error,
-        (@cxx cpp_error->GetErrorType()),
+        error_type(cpp_error),
         name(cpp_error),
         message(cpp_error),
     )
@@ -31,8 +31,16 @@ function message{C, I, Q}(cpp_error::CppAWSError{C, I, Q})
     unsafe_string(@cxx (@cxx cpp_error->GetMessage())->c_str())
 end
 
-name{C, I, Q}(aws_error::AWSError{C, I, Q}) = aws_error.name
-message{C, I, Q}(aws_error::AWSError{C, I, Q}) = aws_error.message
+function error_type{C, I, Q}(cpp_error::CppAWSError{C, I, Q})
+    @cxx cpp_error->GetErrorType()
+end
+
+name(aws_error::AWSError) = aws_error.name
+message(aws_error::AWSError) = aws_error.message
+
+function Base.showerror(io::IO, aws_error::AWSError)
+    print(io, "AWSError: ", name(aws_error), ": ", message(aws_error))
+end
 
 ### AWSError
 

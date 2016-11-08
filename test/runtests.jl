@@ -1,6 +1,7 @@
 using AWSCxx
 using Cxx
 using ResultTypes
+using MotoServer
 using Base.Test
 
 @enum Scheme HTTP HTTPS
@@ -30,97 +31,87 @@ function proxy_config(
     return clc
 end
 
-type MotoServer
-    proc::Base.Process
-    perr::Pipe
-end
-
-function MotoServer(host::String=PROXY_HOST, port::UInt=PROXY_PORT)
-    perr = Pipe()
-    Base.link_pipe(perr, julia_only_read=true, julia_only_write=false)
-
-    proc = spawn(pipeline(`moto_server --host $host --port $port`, stderr=perr))
-
-    # we need this many bytes to know if the server is running or not based on output
-    Base.wait_readnb(perr, 12)
-    err_text = String(readavailable(perr))
-
-    # checking two conditions because process_running might have a race condition?
-    # it looked that way while testing
-    if !process_running(proc) || !contains(err_text, "unning")
-        # start reading async+blocking, then yield to the reading Task
-        # this ensures we get everything when the pipe closes
-        output = @async readstring(perr)
-        close(perr)
-        err_text *= wait(output)
-        kill(proc)
-
-        error("Failed to start a moto server:\n$err_text)")
+@testset "AWSCxx" begin
+    @testset "two clients" begin
+        cl = AWSClient()
+        @test_throws AWSCxx.AWSCxxConcurrencyError AWSClient()
+        AWSCxx.shutdown(cl)
     end
 
-    m = MotoServer(proc, perr)
-    finalizer(m, kill)
+    @testset "error handling" begin
+        @testset "success" begin
+            MockAWSServer(; host=PROXY_HOST, port=PROXY_PORT, service="s3") do ms
+                AWSFeatures.load("s3")
 
-    return m
-end
+                cl = AWSClient()
+                clc = proxy_config()
+                s3_client = @cxxnew Aws::S3::S3Client(clc)
 
-function Base.kill(m::MotoServer)
-    if process_running(m.proc) && !process_exited(m.proc)
-        close(m.perr)
+                list_buckets_outcome = @cxx s3_client->ListBuckets()
+                aws_raw_error = @cxx list_buckets_outcome->GetError()
 
-        # without this check, there was an AssertionError: race condition?
-        if m.proc.handle != C_NULL
-            kill(m.proc, 2)  # SIGINT / CTRL+C
+                thetype = AWSCxx.CppAWSError{Symbol("Aws::S3::S3Errors"), Int32, (false, false, false)}
+
+                @test typeof(aws_raw_error) <: thetype
+                @test typeof(aws_raw_error) == thetype
+                @test isa(aws_raw_error, thetype)
+
+                @test AWSCxx.message(aws_raw_error) == ""
+                aws_error = AWSError(aws_raw_error)
+                @test AWSCxx.message(aws_error) == ""
+
+                outcome = AWSOutcome(list_buckets_outcome)
+                @test !iserror(outcome)
+                result = unwrap(outcome)
+
+                AWSCxx.shutdown(cl)
+            end
+        end
+
+        @testset "failure" begin
+            MockAWSServer(; host=PROXY_HOST, port=PROXY_PORT, service="s3") do ms
+                AWSFeatures.load("s3")
+
+                cl = AWSClient()
+                clc = proxy_config()
+                s3_client = @cxxnew Aws::S3::S3Client(clc)
+
+                request = @cxx Aws::S3::Model::GetObjectRequest()
+                @cxx request->SetBucket(pointer("not_a_bucket"))
+                @cxx request->SetKey(pointer("not_an_object"))
+
+                get_object_outcome = @cxx s3_client->GetObject(request)
+                @test !(@cxx get_object_outcome->IsSuccess())
+                aws_raw_error = @cxx get_object_outcome->GetError()
+
+                @test length(AWSCxx.name(aws_raw_error)) > 0
+                @test length(AWSCxx.message(aws_raw_error)) > 0
+
+                outcome = AWSOutcome(get_object_outcome)
+                @test iserror(outcome)
+                @test_throws AWSError unwrap(outcome)
+
+                AWSCxx.shutdown(cl)
+            end
         end
     end
 
-    nothing
-end
+    @testset "mock" begin
+        MockAWSServer(; host=PROXY_HOST, port=PROXY_PORT, service="s3") do ms
+            AWSFeatures.load("s3")
 
-# write your own tests here
-@testset "error handling" begin
-    AWSFeatures.load("s3")
-    cl = AWSClient()
+            cl = AWSClient()
+            clc = proxy_config()
+            s3_client = @cxxnew Aws::S3::S3Client(clc)
 
-    s3_client = @cxxnew Aws::S3::S3Client()
-    list_buckets_outcome = @cxx s3_client->ListBuckets()
-    aws_raw_error = @cxx list_buckets_outcome->GetError()
+            outcome = AWSOutcome(@cxx s3_client->ListBuckets())
+            @test !iserror(outcome)
+            result = unwrap(outcome)
+            buckets = @cxx result->GetBuckets()
+            num_buckets = @cxx buckets->size()
+            @test num_buckets == 0
 
-    thetype = AWSCxx.CppAWSError{Symbol("Aws::S3::S3Errors"), Int32, (false, false, false)}
-
-    @test typeof(aws_raw_error) <: thetype
-    @test typeof(aws_raw_error) == thetype
-    @test isa(aws_raw_error, thetype)
-    # @test typeof(aws_raw_error) <: AWSCxx.CppAWSError
-    # @test isa(aws_raw_error, AWSCxx.CppAWSError)
-    @test AWSCxx.message(aws_raw_error) == ""
-    aws_error = AWSError(aws_raw_error)
-    @test AWSCxx.message(aws_error) == ""
-
-    outcome = AWSOutcome(list_buckets_outcome)
-    @test !iserror(outcome)
-    result = unwrap(outcome)
-
-    AWSCxx.shutdown(cl)
-    nothing
-end
-
-@testset "mock" begin
-    m = MotoServer()
-
-    AWSFeatures.load("s3")
-
-    cl = AWSClient()
-    clc = proxy_config()
-    s3_client = @cxxnew Aws::S3::S3Client(clc)
-
-    outcome = AWSOutcome(@cxx s3_client->ListBuckets())
-    @test !iserror(outcome)
-    result = unwrap(outcome)
-    buckets = @cxx result->GetBuckets()
-    num_buckets = @cxx buckets->size()
-    @test num_buckets == 0
-
-    AWSCxx.shutdown(cl)
-    kill(m)
+            AWSCxx.shutdown(cl)
+        end
+    end
 end
