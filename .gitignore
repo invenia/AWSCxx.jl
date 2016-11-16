@@ -4,3 +4,7 @@
 deps/downloads/
 deps/builds/
 deps/src/
+deps/usr/
+deps/deps.jl
+deps/paths.jl
+deps/headers.jl

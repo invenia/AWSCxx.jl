@@ -5,11 +5,11 @@ import Base.Libdl: dlext
 using Cxx
 
 
-const LIBDIR = "/usr/local/lib"
-const INCLUDEDIR = "/usr/local/include"
+# includes `const AWS_LIBDIR::String` and `const AWS_INCLUDEDIR::String`
+include(joinpath(dirname(dirname(@__FILE__)), "deps", "paths.jl"))
 
-
-addHeaderDir(INCLUDEDIR, kind=C_System)
+addHeaderDir(AWS_INCLUDEDIR, kind=C_System)
+push!(Libdl.DL_LOAD_PATH, AWS_LIBDIR)
 
 # includes `const FEATURE_HEADERS::Dict{String, Vector{String}}`
 include(joinpath(dirname(@__FILE__), "..", "deps", "headers.jl"))
@@ -59,7 +59,7 @@ function load(f::Feature)
         end
 
         for library in f.libraries
-            Libdl.dlopen(joinpath(LIBDIR, library), Libdl.RTLD_GLOBAL)
+            Libdl.dlopen(joinpath(AWS_LIBDIR, library), Libdl.RTLD_LAZY | Libdl.RTLD_DEEPBIND | Libdl.RTLD_GLOBAL)
         end
 
         f.loaded = true

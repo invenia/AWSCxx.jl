@@ -2,6 +2,8 @@
 
 import Base.Filesystem: pathsep
 
+using ArgParse
+
 function splitdirs(path)
     stem, leaf = splitdir(path)
 
@@ -46,41 +48,61 @@ function aws_headers(aws_include_path)
     return feature_headers
 end
 
-function main()
-    aws_include_path = ARGS[1]
-    command = lowercase(ARGS[2])
-
-    if command == "print"
-        for header_list in values(aws_headers(aws_include_path))
+function generate_headers_code(aws_include_path, output_file)
+    file_or_stdout(output_file) do fp
+        println(fp, "const FEATURE_HEADERS = Dict(")
+        for (feature, header_list) in aws_headers(aws_include_path)
+            println(fp, "    \"$feature\" => [", )
             for header in header_list
-                println("#include <$header>")
+                println(fp, "        \"$header\",")
             end
+            println(fp, "    ],", )
         end
-    elseif command == "generate"
-        output_file = get(ARGS, 3, joinpath(dirname(@__FILE__), "headers.jl"))
-
-        println("AWS: $aws_include_path")
-        println("Action: $command")
-        println("Output file: $output_file")
-        println()
-
-        open(output_file, "w") do fp
-
-            println(fp, "const FEATURE_HEADERS = Dict(")
-            for (feature, header_list) in aws_headers(aws_include_path)
-                println(fp, "\t\"$feature\" => [", )
-                for header in header_list
-                    println(fp, "\t\t\"$header\",")
-                end
-                println(fp, "\t],", )
-            end
-            println(fp, ")")
-        end
-
-        println("Done")
-    else
-        error("Unknown command '$command'")
+        println(fp, ")")
     end
 end
 
-main()
+function print_headers(aws_include_path, output_file)
+    file_or_stdout(output_file) do fp
+        for header_list in values(aws_headers(aws_include_path))
+            for header in header_list
+                println(fp, "#include <$header>")
+            end
+        end
+    end
+end
+
+function file_or_stdout(func::Function, filepath::AbstractString)
+    open(func, filepath, "w")
+end
+
+function file_or_stdout(func::Function, filepath::Void)
+    func(STDOUT)
+end
+
+function argmain()
+    settings = ArgParseSettings(
+        description="parse, group, and process the headers from the AWS SDK for C++",
+        autofix_names=true,
+    )
+
+    add_arg_table(settings,
+        "aws_include_path", Dict(:required=>true, :arg_type=>String),
+        "print", Dict(:action=>:command),
+        "generate", Dict(:action=>:command),
+        "--output_file", Dict(:required=>false, :arg_type=>String),
+    )
+
+    args = parse_args(settings)
+    command = args["%COMMAND%"]
+
+    if command == "print"
+        print_headers(args["aws_include_path"], args["output_file"])
+    elseif command == "generate"
+        generate_headers_code(args["aws_include_path"], args["output_file"])
+    end
+end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    argmain()
+end
