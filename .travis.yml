@@ -10,6 +10,8 @@ matrix:
     - julia: nightly
 notifications:
   email: false
+before_script:
+  - julia --color=yes -e "Pkg.add(\"Homebrew\")"
 after_success:
   # push coverage results to Codecov
   - julia -e 'cd(Pkg.dir("AWSCxx")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
