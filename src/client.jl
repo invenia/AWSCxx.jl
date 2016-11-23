@@ -24,7 +24,6 @@ type AWSClient
 
         cl = new(options)
         init(cl)
-        finalizer(cl, shutdown)
 
         return cl
     end
