@@ -24,10 +24,13 @@ type AWSClient
 
         cl = new(options)
         init(cl)
+        CLIENT[] = cl
 
         return cl
     end
 end
+
+const CLIENT = Ref{AWSClient}()
 
 
 function AWSClient()
@@ -46,3 +49,6 @@ function shutdown(cl::AWSClient)
         atomic_cas!(SDK_LOCK, LockState.SHUTTING_DOWN, LockState.FREE)
     end
 end
+
+init() = init(CLIENT[])
+shutdown() = shutdown(CLIENT[])

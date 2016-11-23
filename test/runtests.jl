@@ -39,9 +39,9 @@ end
 
 @testset "AWSCxx" begin
     @testset "two clients" begin
+        AWSCxx.shutdown()
         cl = AWSClient()
         @test_throws AWSCxx.AWSCxxConcurrencyError AWSClient()
-        AWSCxx.shutdown(cl)
     end
 
     @testset "error handling" begin
@@ -49,7 +49,6 @@ end
             MockAWSServer(; host=PROXY_HOST, port=PROXY_PORT, service="s3") do ms
                 AWSFeatures.load("s3")
 
-                cl = AWSClient()
                 clc = proxy_config()
                 s3_client = @cxxnew Aws::S3::S3Client(clc)
 
@@ -69,8 +68,6 @@ end
                 outcome = AWSOutcome(list_buckets_outcome)
                 @test !iserror(outcome)
                 result = unwrap(outcome)
-
-                AWSCxx.shutdown(cl)
             end
         end
 
@@ -78,7 +75,6 @@ end
             MockAWSServer(; host=PROXY_HOST, port=PROXY_PORT, service="s3") do ms
                 AWSFeatures.load("s3")
 
-                cl = AWSClient()
                 clc = proxy_config()
                 s3_client = @cxxnew Aws::S3::S3Client(clc)
 
@@ -101,8 +97,6 @@ end
                 end
                 @test contains(error_text, "AWSError")
                 @test contains(error_text, "NoSuchBucket")
-
-                AWSCxx.shutdown(cl)
             end
         end
     end
@@ -112,7 +106,7 @@ end
             MockAWSServer(; host=PROXY_HOST, port=PROXY_PORT, service="s3") do ms
                 AWSFeatures.load("s3")
 
-                cl = AWSClient()
+                # cl = AWSClient()
                 clc = proxy_config()
                 s3_client = @cxxnew Aws::S3::S3Client(clc)
 
@@ -122,8 +116,6 @@ end
                 buckets = @cxx result->GetBuckets()
                 num_buckets = @cxx buckets->size()
                 @test num_buckets == 0
-
-                AWSCxx.shutdown(cl)
             end
         end
 
@@ -135,7 +127,6 @@ end
 
                 AWSFeatures.load("s3")
 
-                cl = AWSClient()
                 clc = proxy_config()
                 s3_client = @cxxnew Aws::S3::S3Client(clc)
 
@@ -171,8 +162,6 @@ end
                 @cxx stream->read(pointer(byte_buf), length)
                 contents = String(byte_buf)
                 @test contents == OBJECT_BODY
-
-                AWSCxx.shutdown(cl)
             end
         end
     end

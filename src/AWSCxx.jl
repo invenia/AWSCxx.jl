@@ -10,6 +10,9 @@ include("outcomes.jl")
 
 using .AWSFeatures
 
-AWSFeatures.load("core")
+function __init__()
+    AWSFeatures.load("core")
+    AWSClient()
+end
 
 end # module
