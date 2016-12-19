@@ -1,11 +1,16 @@
 module AWSCxx
 
 export AWSClient, AWSFeatures, AWSError, AWSOutcome
+export aws_string
 
 include("common.jl")
-include("strings.jl")
-include("client.jl")
 include("features.jl")
+include("client.jl")
+
+AWSFeatures.load("core")
+
+include("strings.jl")
+include("maps.jl")
 include("outcomes.jl")
 
 using .AWSFeatures

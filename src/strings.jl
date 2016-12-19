@@ -47,10 +47,10 @@ isCppAWSStringref{Size, QC, QA, QS}(as::CppAWSStringRef{Size, QC, QA, QS}) = tru
 isCppAWSStringref(not_as) = false
 
 function Base.convert{Size, QC, QA, QS, V}(::Type{String}, as::CppAWSString{Size, QC, QA, QS, V})
-    unsafe_string(@cxx as->c_str())
+    unsafe_string((@cxx as->c_str()), (@cxx as->length()))
 end
 function Base.convert{Size, QC, QA, QS}(::Type{String}, as::CppAWSStringRef{Size, QC, QA, QS})
-    unsafe_string(@cxx as->c_str())
+    unsafe_string((@cxx as->c_str()), (@cxx as->length()))
 end
 
 function Base.promote_rule{Size, QC, QA, QS, V}(::Type{String}, ::Type{CppAWSString{Size, QC, QA, QS, V}})
@@ -104,4 +104,13 @@ function Base.show{Size, QC, QA, QS, V}(io::IO, as::CppAWSString{Size, QC, QA, Q
 end
 function Base.show{Size, QC, QA, QS}(io::IO, as::CppAWSStringRef{Size, QC, QA, QS})
     print(io, "Aws::String&(\"", String(as), "\")")
+end
+
+function Base.convert{T<:cxxt"Aws::String"}(::Type{T}, str::AbstractString)
+    icxx"auto aws_str = $(T)($(pointer(String(str))));
+    aws_str;"
+end
+
+function aws_string(thing)
+    convert(cxxt"Aws::String", string(thing))
 end

@@ -165,4 +165,20 @@ end
             end
         end
     end
+
+    @testset "Cxx Types" begin
+        @testset "Strings" begin
+            aws_str = @cxx Aws::String(pointer("foo"))
+            @test String(aws_str) == "foo"
+            @test aws_str == "foo"
+            @test aws_string("foo") == aws_str
+            @test aws_string(SubString("a fool", 3, 5)) == "foo"
+
+            aws_str = convert(cxxt"Aws::String", "foo")
+            @test isa(aws_str, cxxt"Aws::String")
+            @test aws_str == "foo"
+        end
+    end
 end
+
+AWSCxx.shutdown()
