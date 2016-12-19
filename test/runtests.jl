@@ -178,6 +178,23 @@ end
             @test isa(aws_str, cxxt"Aws::String")
             @test aws_str == "foo"
         end
+
+        @testset "Maps" begin
+            aws_map = icxx"""Aws::Map<Aws::String, Aws::String>();"""
+            icxx"""$aws_map[Aws::String("b")] = Aws::String("100");"""
+            icxx"""$aws_map[Aws::String("c")] = Aws::String("200");"""
+
+            dict = convert(Dict{String, String}, icxx"$aws_map;")
+            @test dict["b"] == "100"
+            @test dict["c"] == "200"
+            @test length(dict) == 2
+
+            new_aws_map = aws_string_map(dict)
+            new_dict = convert(Dict{String, String}, new_aws_map)
+            @test dict == new_dict
+
+            nothing
+        end
     end
 end
 
