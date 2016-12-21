@@ -12,6 +12,7 @@ AWSFeatures.load("core")
 include("strings.jl")
 include("maps.jl")
 include("outcomes.jl")
+include("vectors.jl")
 
 using .AWSFeatures
 
