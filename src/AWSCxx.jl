@@ -13,6 +13,7 @@ include("strings.jl")
 include("maps.jl")
 include("outcomes.jl")
 include("vectors.jl")
+include("streams.jl")
 
 using .AWSFeatures
 
